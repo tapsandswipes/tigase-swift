@@ -133,18 +133,29 @@ open class InBandRegistrationModule: AbstractIQModule, ContextAware {
         });
     }
     
-    open func submitRegistrationForm(to jid: JID? = nil, form: JabberDataElement, onSuccess: @escaping ()->Void, onError: @escaping (ErrorCondition?, String?)->Void) {
+    /// Submit a registration form.
+    /// - Parameters:
+    ///   - jid: destination component JID.
+    ///   - form: the form to submit.
+    ///   - onSuccess: The block to call on successful registration. The element parameter is the query element of the response if user already registered.
+    ///   - onError: The block to call on error.
+    open func submitRegistrationForm(to jid: JID? = nil, form: JabberDataElement, onSuccess: @escaping (Element?)->Void, onError: @escaping (ErrorCondition?, String?)->Void) {
         submitRegistrationForm(to: jid, form: form, completionHandler: { result in
             switch result {
-            case .success(_):
-                onSuccess();
-            case .failure(let errorCondition, let errorText):
-                onError(errorCondition, errorText);
+            case .success(let response):
+                onSuccess(response);
+            case .failure(let errorCondition, let response):
+                onError(errorCondition, response??.findChild(name: "error")?.findChild(name: "text")?.value);
             }
         })
     }
     
-    open func submitRegistrationForm(to jid: JID? = nil, form: JabberDataElement, completionHandler: @escaping (AsyncResult<String>)->Void) {
+    /// Submit a registration form
+    /// - Parameters:
+    ///   - jid: destination component JID
+    ///   - form: the form to submit
+    ///   - completionHandler: The block to call on completion. The element returned is the query element of the response if user already registered
+    open func submitRegistrationForm(to jid: JID? = nil, form: JabberDataElement, completionHandler: @escaping (AsyncResult<Element?>)->Void) {
         let iq = Iq();
         iq.type = StanzaType.set;
         iq.to = jid ?? JID(ResourceBinderModule.getBindedJid(context.sessionObject)?.domain ?? context.sessionObject.domainName!);
@@ -157,9 +168,9 @@ open class InBandRegistrationModule: AbstractIQModule, ContextAware {
             let type = response?.type ?? .error;
             switch type {
             case .result:
-                completionHandler(.success(response: ""));
+                completionHandler(.success(response: response?.element));
             default:
-                completionHandler(.failure(errorCondition: response?.errorCondition ?? ErrorCondition.remote_server_timeout, response: response?.findChild(name: "error")?.findChild(name: "text")?.value ?? nil));
+                completionHandler(.failure(errorCondition: response?.errorCondition ?? ErrorCondition.remote_server_timeout, response: response?.element));
             }
         });
     }
@@ -415,14 +426,18 @@ open class InBandRegistrationModule: AbstractIQModule, ContextAware {
             if (usesDataForm) {
                 inBandRegistrationModule.submitRegistrationForm(form: form, completionHandler: { result in
                     switch result {
-                    case .success(_):
+                    case .success(let response):
                         let callback = self.completionHandler;
                         self.finish();
                         if let completionHandler = callback {
-                            completionHandler(.success);
+                            if let q = response?.findChild(name: "query", xmlns: "jabber:iq:register"), q.findChild(name: "registered") != nil {
+                                completionHandler(.alreadyRegistered(q));
+                            } else {
+                                completionHandler(.success);
+                            }
                         }
                     case .failure(let errorCondition, let response):
-                        self.onErrorFn(errorCondition: errorCondition, message: response);
+                        self.onErrorFn(errorCondition: errorCondition, message: response??.findChild(name: "error")?.findChild(name: "text")?.value);
                     }
                 });
             } else {
@@ -436,7 +451,11 @@ open class InBandRegistrationModule: AbstractIQModule, ContextAware {
                         let callback = self.completionHandler;
                         self.finish();
                         if let completionHandler = callback {
-                            completionHandler(.success);
+                            if let q = response?.findChild(name: "query", xmlns: "jabber:iq:register"), q.findChild(name: "registered") != nil {
+                                completionHandler(.alreadyRegistered(q));
+                            } else {
+                                completionHandler(.success);
+                            }
                         }
                     default:
                         self.onErrorFn(errorCondition: response?.errorCondition ?? ErrorCondition.remote_server_timeout, message: response?.findChild(name: "error")?.findChild(name: "text")?.value);
@@ -589,6 +608,7 @@ open class InBandRegistrationModule: AbstractIQModule, ContextAware {
         
         public enum RegistrationResult {
             case success
+            case alreadyRegistered(Element)
             case failure(errorCondition: ErrorCondition, errorText: String?)
         }
         
