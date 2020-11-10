@@ -228,6 +228,7 @@ open class XMPPClient: Logger, EventHandler {
             sessionLogic?.unbind();
             dispatcher.sync {
                 sessionLogic = nil;
+                socketConnector = nil;
             }
             log("connection stopped......");
         default:
