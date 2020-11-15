@@ -497,17 +497,20 @@ class Queue<T> {
     }
     
     open func poll() -> T? {
-        if tail == nil {
+        guard let temp = tail else {
             return nil;
-        } else {
-            let temp = tail!;
-            tail = temp.prev;
-            if tail == nil {
-                head = nil;
-            }
-            self._count -= 1;
-            return temp.value;
         }
+        
+        tail = temp.prev;
+        tail?.next = nil;
+        temp.prev = nil;
+        
+        if tail == nil {
+            head = nil;
+        }
+        
+        self._count -= 1;
+        return temp.value;
     }
 }
 
