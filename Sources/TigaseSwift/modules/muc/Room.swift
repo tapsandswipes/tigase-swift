@@ -332,7 +332,7 @@ open class Room: ChatProtocol, ContextAware {
         
         regModule.retrieveRegistrationForm(from: self.jid, completionHandler: { result in
             switch result {
-            case .success(let type, let form, let bob):
+            case .success(let type, let form, _):
                 if type == .dataForm, let field: BooleanField = form.getField(named: "{http://tigase.org/protocol/muc}offline") {
                     completionHandler(.success(field.value));
                 } else {
@@ -352,7 +352,7 @@ open class Room: ChatProtocol, ContextAware {
         
         regModule.retrieveRegistrationForm(from: self.jid, completionHandler: { result in
             switch result {
-            case .success(let type, let form, let bob):
+            case .success(let type, let form, _):
                 if type == .dataForm, let valueField: BooleanField = form.getField(named: "{http://tigase.org/protocol/muc}offline"), let nicknameField: TextSingleField = form.getField(named: "muc#register_roomnick") {
                     if valueField.value == value {
                         completionHandler(.success(value));
