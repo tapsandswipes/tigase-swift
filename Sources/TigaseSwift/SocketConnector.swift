@@ -82,7 +82,7 @@ open class SocketConnector : XMPPDelegate, StreamDelegate {
         }
     }
     var outStreamBuffer: WriteBuffer?;
-    var parserDelegate: XMLParserDelegate?
+    weak var parserDelegate: XMLParserDelegate?
     var parser: XMLParser?
     var dnsResolver: DNSSrvResolver?;
     weak var sessionLogic: XmppSessionLogic?;
@@ -304,9 +304,10 @@ open class SocketConnector : XMPPDelegate, StreamDelegate {
             self.outStream!.open();
         }
         
-        parserDelegate = XMPPParserDelegate();
-        parserDelegate!.delegate = self
-        parser = XMLParser(delegate: parserDelegate!);
+        let parserDelegate = XMPPParserDelegate();
+        parserDelegate.delegate = self
+        parser = XMLParser(delegate: parserDelegate);
+        self.parserDelegate = parserDelegate
     }
     
     func startTLS() {
